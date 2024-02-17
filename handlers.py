@@ -19,7 +19,7 @@ def get_exchange_rate(update: Update, context: CallbackContext):
 
     data_txt = DataParser(text=message_txt, command='/getrate').parse_as_str()
     target_curr_mapping = RateParser(data=data_txt).parse_to_dict()
-    latest_exchg_rates = api.get_latest_exchange_rates(base_currency='SGD')['data']  # TODO: Feature to allow set base
+    latest_exchg_rates = api.get_latest_exchange_rates(base_currency='SGD')['data']
 
     if target_curr_mapping['from'] not in latest_exchg_rates:
         error_msg = CURRENCY_NOT_FOUND_ERROR.format('[FROM]')
