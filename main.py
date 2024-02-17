@@ -31,7 +31,7 @@ class ExchangeRateBot:
             listen='0.0.0.0',
             port=int(self.PORT),
             url_path=self.token,
-            webhook_url=f"{self.domain}{self.token}"
+            webhook_url=f"{self.domain}/{self.token}"
         )
         self.updater.idle()
 
