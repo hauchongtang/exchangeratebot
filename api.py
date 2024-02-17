@@ -9,4 +9,4 @@ def get_latest_exchange_rates(base_currency='SGD'):
         'base_currency': base_currency
     })
 
-    return response
+    return response.json()
