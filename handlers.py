@@ -32,6 +32,7 @@ def get_exchange_rate(update: Update, context: CallbackContext):
         return error_msg
 
     # Manipulate data to get desired exchange rate
+    print('Data Retrieved')
     result_str = f"Exchange rate of {data_txt} is 1 SGD - 111 JPY"
-    update.message.reply_text(result_str)
+    update.message.reply_text(text=result_str)
     return result_str
