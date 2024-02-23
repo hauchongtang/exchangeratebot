@@ -23,7 +23,9 @@ class ExchangeRateBot:
         self.dp: Updater.dispatcher = self.updater.dispatcher
 
     def register_handlers(self):
+        self.dp.add_error_handler(handlers.error)
         self.dp.add_handler(CommandHandler('getrate', handlers.get_exchange_rate))
+        self.dp.add_handler(CommandHandler('addratealert', handlers.turn_on_exchange_rate_alert, pass_job_queue=True))
         return self
 
     def start(self):
@@ -34,6 +36,8 @@ class ExchangeRateBot:
             webhook_url=f"{self.domain}/{self.token}"
         )
         self.updater.idle()
+        # self.updater.start_polling()
+        # self.updater.idle()
 
 
 if __name__ == '__main__':

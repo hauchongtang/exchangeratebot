@@ -1,12 +1,34 @@
 import requests
+import os
 
-BASEURL = 'https://api.freecurrencyapi.com/v1/'
+BASEURL = os.environ.get('FREECURRENCY_API_BASE_URL', '')
+API_TOKEN = os.environ.get('FREECURRENCY_API_KEY', '')
 
 
-def get_latest_exchange_rates(base_currency='SGD'):
+def get_latest_exchange_rates(base_currency='SGD', currencies=''):
     response = requests.get(f"{BASEURL}latest", params={
-        'apikey': 'fca_live_a5aR6daeZAvYvkQF5DN2u1tyBO8tZUsQsqwiW4pC',
-        'base_currency': base_currency
+        'apikey': API_TOKEN,
+        'base_currency': base_currency,
+        'currencies': currencies
     })
+    return response.json()
 
+
+def get_supported_currencies():
+    response = requests.get(f"{BASEURL}currencies", params={
+        'apikey': API_TOKEN,
+    })
+    return response.json()
+
+
+valid_currencies = get_supported_currencies()['data']
+
+
+def get_historical_data(base_currency: str = 'SGD', currencies: str = '', date: str = '2023-10-01'):
+    response = requests.get(f"{BASEURL}historical", params={
+        'apikey': API_TOKEN,
+        'date': date,
+        'base_currency': base_currency,
+        'currencies': currencies
+    })
     return response.json()
