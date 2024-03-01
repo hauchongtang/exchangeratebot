@@ -136,3 +136,45 @@ def get_exchange_rate_analysis(context: CallbackContext):
         graph_img, caption = GraphViewer(data=historical_rates_per_date_list).get_n_peaks(5).generate_graph()
         caption += f"\n{result_str} today!"
         context.bot.send_photo(chat_id=args_dict['chat_id'], photo=graph_img, caption=caption)
+
+
+def turn_on_conditional_rate_alert(update: Update, context: CallbackContext):
+    # tz = timezone('Asia/Singapore')
+    message_txt: str = update.message.text
+    if not is_command_in_text(text=message_txt, command='/conditionalratealert'):
+        return COMMAND_NOT_FOUND_ERROR
+
+    data_txt = DataParser(text=message_txt, command='/conditionalratealert').parse_as_str()
+    currency_str, target_rate_str = data_txt.split('/')
+
+    # Handle currency
+    _, target_curr_mapping = get_rate_map(data_txt=currency_str, execute_get_exchg_rates=False)
+    # Add user's target currency
+    target_curr_mapping['target'] = float(target_rate_str)
+
+    if update.effective_message is not None:
+        chat_id = str(update.message.chat_id)
+        context.job_queue.run_repeating(get_exchange_rate_if_target, interval=3600 * 3, name=str(chat_id),
+                                        context={
+                                            'target_curr_mapping': target_curr_mapping,
+                                            'chat_id': chat_id
+                                        })
+
+
+def get_exchange_rate_if_target(context: CallbackContext):
+    job = context.job
+    if job is not None and job.context is not None:
+        args_dict: object = job.context
+
+        target_curr_mapping = args_dict['target_curr_mapping']
+        curr_from = target_curr_mapping['from']
+        curr_to = target_curr_mapping['to']
+        latest_exchg_rates = api.get_latest_exchange_rates(
+            base_currency=curr_from, currencies=curr_to)['data']
+
+        user_target_to_notify = target_curr_mapping['target']
+        if latest_exchg_rates[target_curr_mapping['to']] >= user_target_to_notify:
+            result_str = f"ALERT⚠️\nExchange rate of {curr_from}-{curr_to} is 1 {curr_from} - " \
+                         f"{latest_exchg_rates[target_curr_mapping['to']]} {curr_to} vs your set target of " \
+                         f"{user_target_to_notify}"
+            context.bot.send_message(result_str)

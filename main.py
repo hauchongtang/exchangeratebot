@@ -26,6 +26,8 @@ class ExchangeRateBot:
         self.dp.add_error_handler(handlers.error)
         self.dp.add_handler(CommandHandler('getrate', handlers.get_exchange_rate))
         self.dp.add_handler(CommandHandler('addratealert', handlers.turn_on_exchange_rate_alert, pass_job_queue=True))
+        self.dp.add_handler(CommandHandler('conditionalratealert', handlers.turn_on_conditional_rate_alert,
+                                           pass_job_queue=True))
         return self
 
     def start(self):

@@ -39,6 +39,7 @@ class GraphViewer:
         return caption
 
     def generate_graph(self):
+        plt.clf()
         x_list = self.dates
         y_list = self.rates
 
