@@ -159,6 +159,8 @@ def turn_on_conditional_rate_alert(update: Update, context: CallbackContext):
                                             'target_curr_mapping': target_curr_mapping,
                                             'chat_id': chat_id
                                         })
+        update.message.reply_text(f"Reminder enabled for {target_curr_mapping['from']}-{target_curr_mapping['to']} "
+                                  f"at {target_rate_str}")
 
 
 def get_exchange_rate_if_target(context: CallbackContext):
