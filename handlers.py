@@ -200,12 +200,14 @@ def gst_service_charge_choice_handler(update: Update, context: CallbackContext):
     update.message.reply_text("Hi, welcome to GST & Svc charge calculator!\nPlease select the options !",
                               reply_markup=choose_gst_svc_charge_markup)
     context.user_data["gst_svc_options"] = update.message.text
+    logger.info(f"Selected: {update.message.text}, moving on to CHOOSE_Forwards_Reverse")
     return CHOOSE_Forwards_Reverse
 
 
 def gst_service_charge_direction_handler(update: Update, context: CallbackContext):
     update.message.reply_text("Please choose the direction !", reply_markup=choose_charge_direction_markup)
     context.user_data["gst_svc_direction"] = update.message.text
+    logger.info(f"Selected: {update.message.text}, moving on to SET_COST")
     return SET_COST
 
 
@@ -221,7 +223,9 @@ def set_cost_handler(update: Update, context: CallbackContext):
         return CHOOSE_Forwards_Reverse
     choice = context.user_data["gst_svc_options"]
     if choice == "GST Only":
+        logger.info(f"Selected: {number}, moving on to DISPLAY_GST_SVC_RESULT")
         return DISPLAY_GST_SVC_RESULT
+    logger.info(f"Selected: {number}, moving on to SET_SVC_CHARGE_RATE")
     return SET_SVC_CHARGE_RATE
 
 
@@ -238,7 +242,9 @@ def set_svc_charge_rate(update: Update, context: CallbackContext):
     except ValueError:
         update.effective_message.reply_text("I am sorry, you need to send me a number like _.__ "
                                             "between 0 and 0.1 (both inclusive), nothing else")
+        logger.info(f"Selected: {ValueError}, moving back to SET_SVC_CHARGE_RATE")
         return SET_SVC_CHARGE_RATE
+    logger.info(f"Selected: {to_set}, moving on to DISPLAY_GST_SVC_RESULT")
     return DISPLAY_GST_SVC_RESULT
 
 
@@ -267,7 +273,7 @@ def gst_service_charge_conv_handler():
         entry_points=[CommandHandler('start_gst', gst_service_charge_choice_handler)],
         states={
             CHOOSE_Forwards_Reverse: [
-                MessageHandler(filters.Filters.regex("^(Forwards|Reverse)$"),
+                MessageHandler(filters.Filters.text,
                                gst_service_charge_direction_handler)
             ],
             SET_COST: [
