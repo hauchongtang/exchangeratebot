@@ -264,7 +264,7 @@ def generic_done_handler(update: Update, context: CallbackContext):
 
 def gst_service_charge_conv_handler():
     return ConversationHandler(
-        entry_points=[CommandHandler('/start_gst', gst_service_charge_choice_handler)],
+        entry_points=[CommandHandler('start_gst', gst_service_charge_choice_handler)],
         states={
             CHOOSE: [
                 MessageHandler(filters.Filters.regex("^(GST Only|GST & Svc Charge|Service Charge Only)$")
