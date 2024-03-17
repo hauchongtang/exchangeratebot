@@ -2,17 +2,38 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Updater, CallbackContext, ConversationHandler, CommandHandler, MessageHandler, filters
 from pytz import timezone
 import datetime
+import logging
 
 import api
 import helper
 from analysis import GraphViewer
-from common import CURRENCY_NOT_FOUND_ERROR, COMMAND_NOT_FOUND_ERROR
+from common import CURRENCY_NOT_FOUND_ERROR, COMMAND_NOT_FOUND_ERROR, DEFAULT_SVC_CHARGE_RATE
 from helper import is_command_in_text, RateParser, DataParser, ScheduleParser
-from main import logger
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 
 def error(update: Update, context: CallbackContext):
     logger.warning('Update "%s" caused error "%s"', update, context.error)
+
+
+def help_handler(update: Update, context: CallbackContext):
+    help_str = """
+    Welcome to exchange rate bot! Here are some helpful commands~\n\n
+    Get Exchange Rate of SGD to JPY:\n
+    /getrate SGD-JPY\n\n
+    Set exchange rate reminder for SGD-MYR at 3.6:\n
+    /conditionalratealert SGD-MYR/3.6\n\n
+    Set daily alerts for SGD-GBP at 9pm:\n
+    /addratealert SGD-GBP/DAILY 21:00\n\n
+    Gst & Service Charge calculator (Two-way):\n
+    /start_gst
+    """
+    update.message.reply_text(help_str)
+    return help_str
 
 
 def get_exchange_rate(update: Update, context: CallbackContext):
@@ -197,59 +218,83 @@ choose_charge_direction_markup = ReplyKeyboardMarkup(reply_keyboard, one_time_ke
 
 
 def gst_service_charge_choice_handler(update: Update, context: CallbackContext):
-    update.message.reply_text("Hi, welcome to GST & Svc charge calculator!\nPlease select the options !",
+    update.message.reply_text("Hi, welcome to GST & Svc charge calculator!\nPlease select the your receipt type!",
                               reply_markup=choose_gst_svc_charge_markup)
-    context.user_data["gst_svc_options"] = update.message.text
-    logger.info(f"Selected: {update.message.text}, moving on to CHOOSE_Forwards_Reverse")
+    logger.info(f"Executed start_gst, moving on to CHOOSE_Forwards_Reverse")
     return CHOOSE_Forwards_Reverse
 
 
 def gst_service_charge_direction_handler(update: Update, context: CallbackContext):
-    update.message.reply_text("Please choose the direction !", reply_markup=choose_charge_direction_markup)
-    context.user_data["gst_svc_direction"] = update.message.text
-    logger.info(f"Selected: {update.message.text}, moving on to SET_COST")
+    update.message.reply_text("Please choose the direction of calculation!\n"
+                              "Forward: Get Post GST and/or Svc Charge price\n"
+                              "Reverse: Get the actual price before GST and/or Svc Charge",
+                              reply_markup=choose_charge_direction_markup)
+    context.user_data[f"gst_svc_options_{update.effective_user.id}"] = update.message.text
+    logger.info(f"Saved: {update.message.text}, moving on to SET_COST")
     return SET_COST
 
 
 def set_cost_handler(update: Update, context: CallbackContext):
-    update.message.reply_text("Please input the cost !")
-    incoming_cost = update.message.text
-    if not (helper.is_float(incoming_cost)):
-        logger.warning(f"Incoming cost is not decimal, moving on back to CHOOSE_Forwards_Reverse")
-        return CHOOSE_Forwards_Reverse
-    context.user_data["cost"] = float(incoming_cost)
-    choice = context.user_data["gst_svc_options"]
+    update.message.reply_text("Please input the total cost!")
+
+    direction = update.message.text
+    context.user_data[f"gst_svc_direction_{update.effective_user.id}"] = direction
+
+    choice = context.user_data[f"gst_svc_options_{update.effective_user.id}"]
     if choice == "GST Only":
-        logger.info(f"Selected: {incoming_cost}, moving on to DISPLAY_GST_SVC_RESULT")
+        logger.info(f"Choice: {choice}, Direction Saved: {direction}, Moving on to DISPLAY_GST_SVC_RESULT")
         return DISPLAY_GST_SVC_RESULT
-    logger.info(f"Selected: {incoming_cost}, moving on to SET_SVC_CHARGE_RATE")
+    logger.info(f"Choice: {choice}, Direction Saved: {direction}, Moving on to SET_SVC_CHARGE_RATE")
     return SET_SVC_CHARGE_RATE
 
 
 def set_svc_charge_rate(update: Update, context: CallbackContext):
-    update.message.reply_text("Please enter the service charge rate !\nEnter 'default' to choose default of 10%")
+    update.message.reply_text("Please enter the service charge rate in decimal!")
+
+    continue_get_cost = False
     try:
-        number = float(update.effective_message.text)
-        if not 0 <= number <= 0.1 or number != 'default':
-            raise ValueError
-        to_set = 0.1
-        if number != 'default':
-            to_set = number
-        context.user_data["svc_charge_rate"] = to_set
-    except ValueError:
-        update.effective_message.reply_text("I am sorry, you need to send me a number like _.__ "
-                                            "between 0 and 0.1 (both inclusive), nothing else")
-        logger.info(f"Selected: {ValueError}, moving back to SET_SVC_CHARGE_RATE")
-        return SET_SVC_CHARGE_RATE
-    logger.info(f"Selected: {to_set}, moving on to DISPLAY_GST_SVC_RESULT")
+        if context.user_data[f"cost_{update.effective_user.id}"] == 0:
+            continue_get_cost = True
+    except Exception:
+        continue_get_cost = True
+
+    if not continue_get_cost:
+        logger.info("Cost already found. Going to DISPLAY_GST_SVC_RESULT")
+        return DISPLAY_GST_SVC_RESULT
+
+    incoming_cost = update.message.text
+    if not (helper.is_float(incoming_cost)):
+        logger.warning(f"Incoming cost is not decimal, moving on back to CHOOSE_Forwards_Reverse")
+        return CHOOSE_Forwards_Reverse
+    context.user_data[f"cost_{update.effective_user.id}"] = float(incoming_cost)
+
+    logger.info(f"Saved Cost: {incoming_cost}, Moving on to DISPLAY_GST_SVC_RESULT")
     return DISPLAY_GST_SVC_RESULT
 
 
 def generic_info_received_handler(update: Update, context: CallbackContext):
-    choice = context.user_data["gst_svc_options"]
-    direction = context.user_data["gst_svc_direction"]
-    cost = context.user_data["cost"]
-    svc_charge_rate = context.user_data["svc_charge_rate"]
+    choice = context.user_data[f"gst_svc_options_{update.effective_user.id}"]
+    direction = context.user_data[f"gst_svc_direction_{update.effective_user.id}"]
+    cost = context.user_data[f"cost_{update.effective_user.id}"]
+    if choice.upper() != "GST_ONLY" and not helper.is_float(update.message.text):
+        logger.warning(f"Incoming cost is not decimal, moving on back to SET_SVC_CHARGE_RATE")
+        update.message.reply_text(f"Svc Charge Rate is not decimal, Please try again!\n"
+                                  f"Reply with something to proceed.")
+        return SET_SVC_CHARGE_RATE
+
+    number = float(update.message.text)
+    if (not 0 <= number <= DEFAULT_SVC_CHARGE_RATE) and number != 'default':
+        logger.warning(f"Incoming cost is not within 0 and 0.1, moving on back to SET_SVC_CHARGE_RATE")
+        update.message.reply_text(f"Svc Charge Rate is not within 0 and 0.1, Please try again!\n"
+                                  f"Reply with something to proceed.")
+        return SET_SVC_CHARGE_RATE
+
+    to_set = DEFAULT_SVC_CHARGE_RATE
+    if number != 'default':
+        to_set = number
+    context.user_data[f"svc_charge_rate_{update.effective_user.id}"] = to_set
+
+    svc_charge_rate = context.user_data[f"svc_charge_rate_{update.effective_user.id}"]
     calculator = helper.GSTSvcChargeCalculator(cost) \
         .set_direction(direction) \
         .set_svc_charge(svc_charge_rate) \
@@ -257,6 +302,9 @@ def generic_info_received_handler(update: Update, context: CallbackContext):
 
     result = calculator.get_result()
     update.message.reply_text(f"This is the result: ${result}")
+
+    # Wipe the cost to prevent the error handling loop to occur.
+    context.user_data[f"cost_{update.effective_user.id}"] = 0
     return ConversationHandler.END
 
 

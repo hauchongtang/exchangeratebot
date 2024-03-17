@@ -1,5 +1,7 @@
 import os
 
+from common import DEFAULT_GST_RATE, DEFAULT_SVC_CHARGE_RATE
+
 
 def is_command_in_text(text: str, command: str):
     return command in text
@@ -66,8 +68,8 @@ class GSTSvcChargeCalculator:
     def __init__(self, cost: float):
         self.option = "GST & Svc Charge"
         self.cost = cost
-        self.gst_rate = os.environ.get("GST_RATE", 0.09)
-        self.svc_charge = os.environ.get("SVC_CHARGE", 0.1)
+        self.gst_rate = DEFAULT_GST_RATE
+        self.svc_charge = DEFAULT_SVC_CHARGE_RATE
         self.direction = "Forwards"
 
     def set_direction(self, cal_dir: str):
@@ -90,16 +92,16 @@ class GSTSvcChargeCalculator:
         option_str = self.option.upper().strip()
         if self.direction.upper().strip() == "FORWARDS":
             if option_str == "GST & SVC CHARGE":
-                return self.gst_rate * self.svc_charge * self.cost
+                return (1+self.gst_rate) * (1+self.svc_charge) * self.cost
             if option_str == "GST ONLY":
-                return self.gst_rate * self.cost
+                return (1+self.gst_rate) * self.cost
             if option_str == "SERVICE CHARGE ONLY":
-                return self.svc_charge * self.cost
+                return (1+self.svc_charge) * self.cost
         else:
             if option_str == "GST & SVC CHARGE":
-                return self.cost / (self.gst_rate * self.svc_charge)
+                return self.cost / ((1+self.gst_rate) * (1+self.svc_charge))
             if option_str == "GST ONLY":
-                return self.cost / self.gst_rate
+                return self.cost / (1+self.gst_rate)
             if option_str == "SERVICE CHARGE ONLY":
-                return self.cost / self.svc_charge
+                return self.cost / (1+self.svc_charge)
         return "Error please try again! /Done"
