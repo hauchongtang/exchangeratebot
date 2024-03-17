@@ -183,7 +183,7 @@ def get_exchange_rate_if_target(context: CallbackContext):
             context.bot.send_message(result_str)
 
 
-CHOOSE, CHOOSE_Forwards_Reverse, SET_COST, SET_SVC_CHARGE_RATE, DISPLAY_GST_SVC_RESULT = range(5)
+CHOOSE_Forwards_Reverse, SET_COST, SET_SVC_CHARGE_RATE, DISPLAY_GST_SVC_RESULT = range(4)
 
 reply_keyboard = [
     ["GST Only", "GST & Svc Charge"],
@@ -266,10 +266,6 @@ def gst_service_charge_conv_handler():
     return ConversationHandler(
         entry_points=[CommandHandler('start_gst', gst_service_charge_choice_handler)],
         states={
-            CHOOSE: [
-                MessageHandler(filters.Filters.regex("^(GST Only|GST & Svc Charge|Service Charge Only)$")
-                               , gst_service_charge_choice_handler)
-            ],
             CHOOSE_Forwards_Reverse: [
                 MessageHandler(filters.Filters.regex("^(Forwards|Reverse)$"),
                                gst_service_charge_direction_handler)
