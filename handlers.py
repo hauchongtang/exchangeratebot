@@ -214,7 +214,7 @@ def gst_service_charge_direction_handler(update: Update, context: CallbackContex
 def set_cost_handler(update: Update, context: CallbackContext):
     update.message.reply_text("Please input the cost !")
     try:
-        number = float(update.effective_message.text)
+        number = float(update.message.text)
         if number <= 0:
             raise ValueError
         context.user_data["cost"] = number
