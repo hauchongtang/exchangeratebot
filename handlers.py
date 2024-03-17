@@ -183,7 +183,7 @@ def get_exchange_rate_if_target(context: CallbackContext):
             context.bot.send_message(result_str)
 
 
-CHOOSE, CHOOSE_Forwards_Reverse, SET_COST, SET_SVC_CHARGE_RATE, DISPLAY_GST_SVC_RESULT = range(4)
+CHOOSE, CHOOSE_Forwards_Reverse, SET_COST, SET_SVC_CHARGE_RATE, DISPLAY_GST_SVC_RESULT = range(5)
 
 reply_keyboard = [
     ["GST Only", "GST & Svc Charge"],
