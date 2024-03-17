@@ -5,6 +5,17 @@ def is_command_in_text(text: str, command: str):
     return command in text
 
 
+def is_float(element: any) -> bool:
+    # If you expect None to be passed:
+    if element is None:
+        return False
+    try:
+        float(element)
+        return True
+    except ValueError:
+        return False
+
+
 class DataParser:
     def __init__(self, text: str, command: str):
         self.text = text

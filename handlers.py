@@ -214,7 +214,7 @@ def gst_service_charge_direction_handler(update: Update, context: CallbackContex
 def set_cost_handler(update: Update, context: CallbackContext):
     update.message.reply_text("Please input the cost !")
     incoming_cost = update.message.text
-    if not incoming_cost.isdecimal():
+    if not (helper.is_float(incoming_cost)):
         logger.warning(f"Incoming cost is not decimal, moving on back to CHOOSE_Forwards_Reverse")
         return CHOOSE_Forwards_Reverse
     context.user_data["cost"] = float(incoming_cost)
@@ -251,8 +251,8 @@ def generic_info_received_handler(update: Update, context: CallbackContext):
     cost = context.user_data["cost"]
     svc_charge_rate = context.user_data["svc_charge_rate"]
     calculator = helper.GSTSvcChargeCalculator(cost) \
-        .set_direction(direction)\
-        .set_svc_charge(svc_charge_rate)\
+        .set_direction(direction) \
+        .set_svc_charge(svc_charge_rate) \
         .set_option(choice)
 
     result = calculator.get_result()
