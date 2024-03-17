@@ -213,19 +213,16 @@ def gst_service_charge_direction_handler(update: Update, context: CallbackContex
 
 def set_cost_handler(update: Update, context: CallbackContext):
     update.message.reply_text("Please input the cost !")
-    try:
-        number = float(update.message.text)
-        if number <= 0:
-            raise ValueError
-        context.user_data["cost"] = number
-    except ValueError:
-        update.effective_message.reply_text("I am sorry, you need to send me a number like _.__, nothing else")
+    incoming_cost = update.message.text
+    if not incoming_cost.isdecimal():
+        logger.warning(f"Incoming cost is not decimal, moving on back to CHOOSE_Forwards_Reverse")
         return CHOOSE_Forwards_Reverse
+    context.user_data["cost"] = float(incoming_cost)
     choice = context.user_data["gst_svc_options"]
     if choice == "GST Only":
-        logger.info(f"Selected: {number}, moving on to DISPLAY_GST_SVC_RESULT")
+        logger.info(f"Selected: {incoming_cost}, moving on to DISPLAY_GST_SVC_RESULT")
         return DISPLAY_GST_SVC_RESULT
-    logger.info(f"Selected: {number}, moving on to SET_SVC_CHARGE_RATE")
+    logger.info(f"Selected: {incoming_cost}, moving on to SET_SVC_CHARGE_RATE")
     return SET_SVC_CHARGE_RATE
 
 
