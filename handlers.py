@@ -1,9 +1,10 @@
-from telegram import Update
-from telegram.ext import Updater, CallbackContext
+from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import Updater, CallbackContext, ConversationHandler, CommandHandler, MessageHandler, filters
 from pytz import timezone
 import datetime
 
 import api
+import helper
 from analysis import GraphViewer
 from common import CURRENCY_NOT_FOUND_ERROR, COMMAND_NOT_FOUND_ERROR
 from helper import is_command_in_text, RateParser, DataParser, ScheduleParser
@@ -180,3 +181,110 @@ def get_exchange_rate_if_target(context: CallbackContext):
                          f"{latest_exchg_rates[target_curr_mapping['to']]} {curr_to} vs your set target of " \
                          f"{user_target_to_notify}"
             context.bot.send_message(result_str)
+
+
+CHOOSE, CHOOSE_Forwards_Reverse, SET_COST, SET_SVC_CHARGE_RATE, DISPLAY_GST_SVC_RESULT = range(4)
+
+reply_keyboard = [
+    ["GST Only", "GST & Svc Charge"],
+    ["Service Charge Only"],
+]
+choose_gst_svc_charge_markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+reply_keyboard = [
+    ["Forwards", "Reverse"]
+]
+choose_charge_direction_markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+
+def gst_service_charge_choice_handler(update: Update, context: CallbackContext):
+    update.message.reply_text("Hi, welcome to GST & Svc charge calculator!\nPlease select the options !",
+                              reply_markup=choose_gst_svc_charge_markup)
+    context.user_data["gst_svc_options"] = update.message.text
+    return CHOOSE_Forwards_Reverse
+
+
+def gst_service_charge_direction_handler(update: Update, context: CallbackContext):
+    update.message.reply_text("Please choose the direction !", reply_markup=choose_charge_direction_markup)
+    context.user_data["gst_svc_direction"] = update.message.text
+    return SET_COST
+
+
+def set_cost_handler(update: Update, context: CallbackContext):
+    update.message.reply_text("Please input the cost !")
+    try:
+        number = float(update.effective_message.text)
+        if number <= 0:
+            raise ValueError
+        context.user_data["cost"] = number
+    except ValueError:
+        update.effective_message.reply_text("I am sorry, you need to send me a number like _.__, nothing else")
+        return CHOOSE_Forwards_Reverse
+    choice = context.user_data["gst_svc_options"]
+    if choice == "GST Only":
+        return DISPLAY_GST_SVC_RESULT
+    return SET_SVC_CHARGE_RATE
+
+
+def set_svc_charge_rate(update: Update, context: CallbackContext):
+    update.message.reply_text("Please enter the service charge rate !\nEnter 'default' to choose default of 10%")
+    try:
+        number = float(update.effective_message.text)
+        if not 0 <= number <= 0.1 or number != 'default':
+            raise ValueError
+        to_set = 0.1
+        if number != 'default':
+            to_set = number
+        context.user_data["svc_charge_rate"] = to_set
+    except ValueError:
+        update.effective_message.reply_text("I am sorry, you need to send me a number like _.__ "
+                                            "between 0 and 0.1 (both inclusive), nothing else")
+        return SET_SVC_CHARGE_RATE
+    return DISPLAY_GST_SVC_RESULT
+
+
+def generic_info_received_handler(update: Update, context: CallbackContext):
+    choice = context.user_data["gst_svc_options"]
+    direction = context.user_data["gst_svc_direction"]
+    cost = context.user_data["cost"]
+    svc_charge_rate = context.user_data["svc_charge_rate"]
+    calculator = helper.GSTSvcChargeCalculator(cost) \
+        .set_direction(direction)\
+        .set_svc_charge(svc_charge_rate)\
+        .set_option(choice)
+
+    result = calculator.get_result()
+    update.message.reply_text(f"This is the result: ${result}")
+    return ConversationHandler.END
+
+
+def generic_done_handler(update: Update, context: CallbackContext):
+    update.message.reply_text("Thanks for using me, till next time! ☺️")
+    return ConversationHandler.END
+
+
+def gst_service_charge_conv_handler():
+    return ConversationHandler(
+        entry_points=[CommandHandler('start', gst_service_charge_choice_handler)],
+        states={
+            CHOOSE: [
+                MessageHandler(filters.Filters.regex("^(GST Only|GST & Svc Charge|Service Charge Only)$")
+                               , gst_service_charge_choice_handler)
+            ],
+            CHOOSE_Forwards_Reverse: [
+                MessageHandler(filters.Filters.regex("^(Forwards|Reverse)$"),
+                               gst_service_charge_direction_handler)
+            ],
+            SET_COST: [
+                MessageHandler(filters.Filters.text,
+                               set_cost_handler)
+            ],
+            SET_SVC_CHARGE_RATE: [
+                MessageHandler(filters.Filters.text,
+                               set_svc_charge_rate)
+            ],
+            DISPLAY_GST_SVC_RESULT: [
+                MessageHandler(filters.Filters.text, generic_info_received_handler)
+            ]
+        },
+        fallbacks=[MessageHandler(filters.Filters.regex("^Done$"), generic_done_handler)]
+    )

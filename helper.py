@@ -1,3 +1,6 @@
+import os
+
+
 def is_command_in_text(text: str, command: str):
     return command in text
 
@@ -46,3 +49,46 @@ class ScheduleParser:
         if freq_str not in ('DAILY',):
             raise ValueError('Frequency not found. Only DAILY is applicable for now')
         return freq_str, time_hh_mm_tuple
+
+
+class GSTSvcChargeCalculator:
+    def __init__(self, cost: float):
+        self.option = "GST & Svc Charge"
+        self.cost = cost
+        self.gst_rate = os.environ.get("GST_RATE", 0.09)
+        self.svc_charge = os.environ.get("SVC_CHARGE", 0.1)
+        self.direction = "Forwards"
+
+    def set_direction(self, cal_dir: str):
+        self.direction = cal_dir
+        return self
+
+    def set_svc_charge(self, svc_ch: float):
+        self.svc_charge = svc_ch
+        return self
+
+    def set_gst_rate(self, rate: float):
+        self.gst_rate = rate
+        return self
+
+    def set_option(self, option: str):
+        self.option = option
+        return self
+
+    def get_result(self):
+        option_str = self.option.upper().strip()
+        if self.direction.upper().strip() == "FORWARDS":
+            if option_str == "GST & SVC CHARGE":
+                return self.gst_rate * self.svc_charge * self.cost
+            if option_str == "GST ONLY":
+                return self.gst_rate * self.cost
+            if option_str == "SERVICE CHARGE ONLY":
+                return self.svc_charge * self.cost
+        else:
+            if option_str == "GST & SVC CHARGE":
+                return self.cost / (self.gst_rate * self.svc_charge)
+            if option_str == "GST ONLY":
+                return self.cost / self.gst_rate
+            if option_str == "SERVICE CHARGE ONLY":
+                return self.cost / self.svc_charge
+        return "Error please try again! /Done"

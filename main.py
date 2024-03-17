@@ -28,6 +28,7 @@ class ExchangeRateBot:
         self.dp.add_handler(CommandHandler('addratealert', handlers.turn_on_exchange_rate_alert, pass_job_queue=True))
         self.dp.add_handler(CommandHandler('conditionalratealert', handlers.turn_on_conditional_rate_alert,
                                            pass_job_queue=True))
+        self.dp.add_handler(handlers.gst_service_charge_conv_handler())
         return self
 
     def start(self):
