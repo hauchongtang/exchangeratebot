@@ -1,3 +1,5 @@
+import os
+
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Updater, CallbackContext, ConversationHandler, CommandHandler, MessageHandler, filters
 from pytz import timezone
@@ -8,6 +10,7 @@ import api
 import helper
 from analysis import GraphViewer
 from common import CURRENCY_NOT_FOUND_ERROR, COMMAND_NOT_FOUND_ERROR, DEFAULT_SVC_CHARGE_RATE
+from database import logic
 from helper import is_command_in_text, RateParser, DataParser, ScheduleParser
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -176,7 +179,8 @@ def turn_on_conditional_rate_alert(update: Update, context: CallbackContext):
 
     if update.effective_message is not None:
         chat_id = str(update.message.chat_id)
-        context.job_queue.run_repeating(get_exchange_rate_if_target, interval=3600 * 3, name=str(chat_id),
+        context.job_queue.run_repeating(get_exchange_rate_if_target,
+                                        interval=os.environ.get("COND_RATE_CHECK_INTERVAL", 600), name=str(chat_id),
                                         context={
                                             'target_curr_mapping': target_curr_mapping,
                                             'chat_id': chat_id
@@ -196,12 +200,27 @@ def get_exchange_rate_if_target(context: CallbackContext):
         latest_exchg_rates = api.get_latest_exchange_rates(
             base_currency=curr_from, currencies=curr_to)['data']
 
+        logger.info("Executing Job...\n", latest_exchg_rates)
+
+        latest_target_rate = latest_exchg_rates[target_curr_mapping['to']]
+
         user_target_to_notify = target_curr_mapping['target']
-        if latest_exchg_rates[target_curr_mapping['to']] >= user_target_to_notify:
+        if latest_target_rate >= user_target_to_notify:
             result_str = f"ALERT⚠️\nExchange rate of {curr_from}-{curr_to} is 1 {curr_from} - " \
-                         f"{latest_exchg_rates[target_curr_mapping['to']]} {curr_to} vs your set target of " \
+                         f"{latest_target_rate} {curr_to} vs your set target of " \
                          f"{user_target_to_notify}"
-            context.bot.send_message(result_str)
+            last_rate, last_update = logic.get_last_saved_exchange_rate(curr_to, latest_target_rate)
+            if latest_target_rate > last_rate:
+                logic.update_exchange_rate(curr_to, latest_target_rate)
+            if latest_target_rate > last_rate and \
+                    (abs(abs(60 - last_update.minute) - abs(60 - datetime.datetime.now().minute))
+                     == os.environ.get("COND_RATE_REMIND_INTERVAL", 45)):
+                logger.info("handlers.get_exchange_rate_if_target -> Interval reminder executed")
+                logger.info((abs(abs(60 - last_update.minute) - abs(60 - datetime.datetime.now().minute))))
+                chat_id = args_dict['chat_id']
+                context.bot.send_message(chat_id, result_str)
+            else:
+                logger.info("handlers.get_exchange_rate_if_target -> Interval reminder did not execute")
 
 
 CHOOSE_Forwards_Reverse, SET_COST, SET_SVC_CHARGE_RATE, DISPLAY_GST_SVC_RESULT = range(4)
