@@ -190,7 +190,12 @@ def turn_on_conditional_rate_alert(update: Update, context: CallbackContext):
 
 
 def get_exchange_rate_if_target(context: CallbackContext):
-    time_now = datetime.datetime.now()
+    time_now = datetime.datetime.utcnow()
+    # Create a timedelta object for the timezone offset
+    timezone_offset = datetime.timedelta(hours=8, minutes=0)
+    # Adjust the datetime object for the timezone offset
+    time_now += timezone_offset
+
     if (not (9 < time_now.hour <= 19)) or (time_now.weekday() >= 5):
         if time_now.weekday() < 5:
             logger.info("get_exchange_rate_if_target -> Inactive Hours, No Triggers")
