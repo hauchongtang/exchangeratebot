@@ -180,7 +180,7 @@ def turn_on_conditional_rate_alert(update: Update, context: CallbackContext):
     if update.effective_message is not None:
         chat_id = str(update.message.chat_id)
         context.job_queue.run_repeating(get_exchange_rate_if_target,
-                                        interval=os.environ.get("COND_RATE_CHECK_INTERVAL", 600), name=str(chat_id),
+                                        interval=int(os.environ.get("COND_RATE_CHECK_INTERVAL", 600)), name=str(chat_id),
                                         context={
                                             'target_curr_mapping': target_curr_mapping,
                                             'chat_id': chat_id
@@ -214,7 +214,7 @@ def get_exchange_rate_if_target(context: CallbackContext):
                 logic.update_exchange_rate(curr_to, latest_target_rate)
             if latest_target_rate > last_rate and \
                     (abs(abs(60 - last_update.minute) - abs(60 - datetime.datetime.now().minute))
-                     == os.environ.get("COND_RATE_REMIND_INTERVAL", 45)):
+                     == int(os.environ.get("COND_RATE_REMIND_INTERVAL", 45))):
                 logger.info("handlers.get_exchange_rate_if_target -> Interval reminder executed")
                 logger.info((abs(abs(60 - last_update.minute) - abs(60 - datetime.datetime.now().minute))))
                 chat_id = args_dict['chat_id']
