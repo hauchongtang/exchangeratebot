@@ -190,6 +190,14 @@ def turn_on_conditional_rate_alert(update: Update, context: CallbackContext):
 
 
 def get_exchange_rate_if_target(context: CallbackContext):
+    time_now = datetime.datetime.now()
+    if (not (9 < time_now.hour <= 19)) and (time_now.weekday() >= 5):
+        if time_now.weekday() < 5:
+            logger.info("get_exchange_rate_if_target -> Inactive Hours, No Triggers")
+        else:
+            logger.info("get_exchange_rate_if_target -> Weekends, No Triggers")
+        return
+
     job = context.job
     if job is not None and job.context is not None:
         args_dict: object = job.context
