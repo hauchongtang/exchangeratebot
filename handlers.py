@@ -225,9 +225,9 @@ def get_exchange_rate_if_target(context: CallbackContext):
             last_rate, last_update = logic.get_last_saved_exchange_rate(curr_to, latest_target_rate)
             if latest_target_rate > last_rate:
                 logic.update_exchange_rate(curr_to, latest_target_rate)
-            if latest_target_rate > last_rate and \
-                    (abs(abs(60 - last_update.minute) - abs(60 - datetime.datetime.now().minute))
-                     == int(os.environ.get("COND_RATE_REMIND_INTERVAL", 45))):
+            # if latest_target_rate > last_rate and \
+            #         (abs(abs(60 - last_update.minute) - abs(60 - datetime.datetime.now().minute))
+            #          == int(os.environ.get("COND_RATE_REMIND_INTERVAL", 45))):
                 logger.info("handlers.get_exchange_rate_if_target -> Interval reminder executed")
                 logger.info((abs(abs(60 - last_update.minute) - abs(60 - datetime.datetime.now().minute))))
                 chat_id = args_dict['chat_id']
